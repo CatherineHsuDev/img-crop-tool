@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <title>自訂畫布圖片排版工具</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <!-- 畫布設定 -->
+      <div class="row">
+        <label
+          >寬度(px)：<input type="number" id="canvasWidthInput" value="500"
+        /></label>
+        <label
+          >高度(px)：<input type="number" id="canvasHeightInput" value="400"
+        /></label>
+        <button id="btnUpdateCanvas">建立 / 更新畫布</button>
+        <span id="canvasInfo" class="canvas-info"></span>
+      </div>
+
+      <!-- 載入圖片 -->
+      <div class="row">
+        <input type="file" id="fileInput" accept="image/*" />
+      </div>
+
+      <!-- 畫布區 -->
+      <div id="canvasPreview">
+        <div id="photoWrapper" style="display: none">
+          <img id="photoLayer" alt="photo" />
+
+          <!-- 8 個拉伸點 -->
+          <div class="handle handle-nw" data-dir="nw"></div>
+          <div class="handle handle-n" data-dir="n"></div>
+          <div class="handle handle-ne" data-dir="ne"></div>
+
+          <div class="handle handle-e" data-dir="e"></div>
+          <div class="handle handle-se" data-dir="se"></div>
+          <div class="handle handle-s" data-dir="s"></div>
+
+          <div class="handle handle-sw" data-dir="sw"></div>
+          <div class="handle handle-w" data-dir="w"></div>
+        </div>
+
+        <div id="dropOverlay">
+          將圖片拖曳到這裡，<br />
+          或使用上方「選擇檔案」載入。
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="btnCenter">置中</button>
+        <button id="btnResetZoom">重設縮放</button>
+        <button id="btnDownload">下載 PNG</button>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
