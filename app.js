@@ -1,4 +1,4 @@
-// 畫布 & DOM
+// DOM 取得
 const canvasPreview = document.getElementById("canvasPreview");
 const canvasInfo = document.getElementById("canvasInfo");
 const widthInput = document.getElementById("canvasWidthInput");
@@ -9,15 +9,16 @@ const photoWrapper = document.getElementById("photoWrapper");
 const photoLayer = document.getElementById("photoLayer");
 const dropOverlay = document.getElementById("dropOverlay");
 
-// 狀態：畫布
-let canvasWidth = Number(widthInput.value) || 500;
-let canvasHeight = Number(heightInput.value) || 400;
+// 畫布狀態
+let canvasWidth = Number(widthInput.value) || 1080;
+let canvasHeight = Number(heightInput.value) || 1350;
+let canvasZoom = 1; // Alt + 滾輪縮放預覽用
 
-// 狀態：圖片
+// 圖片原始尺寸
 let imgNaturalW = 0;
 let imgNaturalH = 0;
 
-// 圖片目前縮放／位置（等比例）
+// 圖片顯示狀態（等比例縮放）
 let scale = 1;
 let offsetX = 0;
 let offsetY = 0;
@@ -29,16 +30,18 @@ let dragStartY = 0;
 let dragOriginX = 0;
 let dragOriginY = 0;
 
-// 拉伸狀態
+// 拉伸狀態（固定反向錨點）
 let isResizing = false;
 let resizeDir = null;
 let resizeStartX = 0;
 let resizeStartY = 0;
 let resizeStartScale = 1;
-let resizeCenterX = 0;
-let resizeCenterY = 0;
+let anchorNormX = 0.5; // 0~1：錨點在圖片內的相對位置
+let anchorNormY = 0.5;
+let anchorCanvasX = 0; // 錨點在畫布內的實際座標
+let anchorCanvasY = 0;
 
-// 初始化畫布尺寸
+// 更新畫布尺寸
 function updateCanvasSize() {
   canvasWidth = Number(widthInput.value) || canvasWidth;
   canvasHeight = Number(heightInput.value) || canvasHeight;
@@ -46,25 +49,32 @@ function updateCanvasSize() {
   canvasPreview.style.width = canvasWidth + "px";
   canvasPreview.style.height = canvasHeight + "px";
   canvasInfo.textContent = `畫布尺寸：${canvasWidth} × ${canvasHeight} px`;
+
+  applyCanvasZoom();
 }
 
+function applyCanvasZoom() {
+  canvasPreview.style.transform = `scale(${canvasZoom})`;
+  canvasPreview.style.transformOrigin = "top left";
+}
+
+// 初始化畫布
 updateCanvasSize();
 
 document.getElementById("btnUpdateCanvas").onclick = () => {
   updateCanvasSize();
-  // 若已有圖片，畫布變動後，重新置中
   if (imgNaturalW && imgNaturalH) {
     fitImageToCanvas(false);
   }
 };
 
-// 更新 wrapper 的 transform
+// 更新圖片 transform（作用在 wrapper）
 function updateTransform() {
   photoWrapper.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
 }
 
-// 讓圖片以原始比例塞進畫布，並置中
-// keepScaleIfBigger = true：只改位置，不縮小
+// 讓圖片以原始比例「完整塞進畫布」並置中
+// keepScaleIfBigger = true：只動位置，不強制縮小
 function fitImageToCanvas(keepScaleIfBigger = false) {
   if (!imgNaturalW || !imgNaturalH) return;
 
@@ -75,6 +85,23 @@ function fitImageToCanvas(keepScaleIfBigger = false) {
   if (!keepScaleIfBigger || fitScale < scale) {
     scale = fitScale;
   }
+
+  const displayW = imgNaturalW * scale;
+  const displayH = imgNaturalH * scale;
+
+  offsetX = (canvasWidth - displayW) / 2;
+  offsetY = (canvasHeight - displayH) / 2;
+
+  updateTransform();
+}
+
+// 讓圖片「填滿畫布」（類似 object-fit: cover）
+function coverImageToCanvas() {
+  if (!imgNaturalW || !imgNaturalH) return;
+
+  const scaleX = canvasWidth / imgNaturalW;
+  const scaleY = canvasHeight / imgNaturalH;
+  scale = Math.max(scaleX, scaleY); // 填滿畫布，可能會裁掉部分
 
   const displayW = imgNaturalW * scale;
   const displayH = imgNaturalH * scale;
@@ -97,7 +124,7 @@ function loadImageFile(file) {
 
     photoLayer.src = url;
     photoWrapper.style.display = "block";
-    dropOverlay.classList.add("hidden");
+    dropOverlay.classList.add("hidden"); // ⭐ 載入後隱藏示意文字
 
     scale = 1;
     fitImageToCanvas(false);
@@ -153,7 +180,7 @@ canvasPreview.addEventListener("drop", (e) => {
 // 拖曳移動圖片（按在畫布上，且不是 handle）
 canvasPreview.addEventListener("mousedown", (e) => {
   if (!imgNaturalW || !imgNaturalH) return;
-  if (e.target.classList.contains("handle")) return; // 避免跟拉伸衝突
+  if (e.target.classList.contains("handle")) return; // 拉伸點另處理
 
   isDragging = true;
   dragStartX = e.clientX;
@@ -183,12 +210,30 @@ canvasPreview.addEventListener("mouseleave", () => {
   isDragging = false;
 });
 
-// 滾輪縮放（等比例，以滑鼠位置為中心）
+// 滾輪：Alt + 滾輪 → 縮放畫布預覽；平常 → 縮放圖片
 canvasPreview.addEventListener(
   "wheel",
   (e) => {
-    if (!imgNaturalW || !imgNaturalH) return;
     e.preventDefault();
+
+    // Alt + 滾輪 → 畫布預覽縮放
+    if (e.altKey) {
+      const oldZoom = canvasZoom;
+      const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+      let newZoom = oldZoom * zoomFactor;
+
+      const minZoom = 0.3;
+      const maxZoom = 3;
+      if (newZoom < minZoom) newZoom = minZoom;
+      if (newZoom > maxZoom) newZoom = maxZoom;
+
+      canvasZoom = newZoom;
+      applyCanvasZoom();
+      return;
+    }
+
+    // 沒有 Alt → 縮放圖片（等比例）
+    if (!imgNaturalW || !imgNaturalH) return;
 
     const rect = canvasPreview.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
@@ -215,7 +260,7 @@ canvasPreview.addEventListener(
   { passive: false }
 );
 
-// ⭐ 置中：保留目前縮放，只重新算 offsetX/offsetY
+// 置中圖片（保留目前縮放）
 document.getElementById("btnCenter").onclick = () => {
   if (!imgNaturalW || !imgNaturalH) return;
 
@@ -227,10 +272,15 @@ document.getElementById("btnCenter").onclick = () => {
   updateTransform();
 };
 
-// ⭐ 重設縮放：重新讓圖片「剛好塞進畫布」並置中
+// 重設縮放：重新「完整塞進畫布」並置中（contain）
 document.getElementById("btnResetZoom").onclick = () => {
   if (!imgNaturalW || !imgNaturalH) return;
   fitImageToCanvas(false);
+};
+
+// 填滿畫布：cover 效果
+document.getElementById("btnCover").onclick = () => {
+  coverImageToCanvas();
 };
 
 // 下載 PNG（透明底）
@@ -267,9 +317,8 @@ document.getElementById("btnDownload").onclick = () => {
   );
 };
 
-/* ---------------- 拉伸點邏輯（等比例縮放） ---------------- */
+/* ---------------- 拉伸點邏輯：固定反向錨點 + 等比例縮放 ---------------- */
 
-// 綁定每個 handle 的 mousedown
 document.querySelectorAll(".handle").forEach((handle) => {
   handle.addEventListener("mousedown", (e) => {
     if (!imgNaturalW || !imgNaturalH) return;
@@ -281,38 +330,69 @@ document.querySelectorAll(".handle").forEach((handle) => {
     resizeStartY = e.clientY;
     resizeStartScale = scale;
 
-    // 以圖片中心為縮放中心
     const displayW = imgNaturalW * scale;
     const displayH = imgNaturalH * scale;
-    resizeCenterX = offsetX + displayW / 2;
-    resizeCenterY = offsetY + displayH / 2;
+
+    // 根據拉伸點設定「反向錨點」在圖片中的相對位置（0~1）
+    // 例如：拉東側（e），錨點在西側中間 (0, 0.5)
+    switch (resizeDir) {
+      case "e":
+        anchorNormX = 0;
+        anchorNormY = 0.5;
+        break;
+      case "w":
+        anchorNormX = 1;
+        anchorNormY = 0.5;
+        break;
+      case "n":
+        anchorNormX = 0.5;
+        anchorNormY = 1;
+        break;
+      case "s":
+        anchorNormX = 0.5;
+        anchorNormY = 0;
+        break;
+      case "ne":
+        anchorNormX = 0;
+        anchorNormY = 1;
+        break;
+      case "nw":
+        anchorNormX = 1;
+        anchorNormY = 1;
+        break;
+      case "se":
+        anchorNormX = 0;
+        anchorNormY = 0;
+        break;
+      case "sw":
+        anchorNormX = 1;
+        anchorNormY = 0;
+        break;
+      default:
+        anchorNormX = 0.5;
+        anchorNormY = 0.5;
+    }
+
+    // 計算錨點在畫布中的實際座標（縮放後）
+    anchorCanvasX = offsetX + anchorNormX * displayW;
+    anchorCanvasY = offsetY + anchorNormY * displayH;
   });
 });
 
-// 滑鼠移動時，如在拉伸就呼叫這個
 function handleResizeMove(e) {
   if (!isResizing) return;
 
   const dx = e.clientX - resizeStartX;
   const dy = e.clientY - resizeStartY;
 
-  // 依照 handle 的方向決定「放大還是縮小」
+  // 依 handle 方向決定縮放影響（只是決定放大／縮小方向與速度）
   let influence = 0;
 
-  if (resizeDir.includes("e")) {
-    influence += dx;
-  }
-  if (resizeDir.includes("w")) {
-    influence -= dx;
-  }
-  if (resizeDir.includes("s")) {
-    influence += dy;
-  }
-  if (resizeDir.includes("n")) {
-    influence -= dy;
-  }
+  if (resizeDir.includes("e")) influence += dx;
+  if (resizeDir.includes("w")) influence -= dx;
+  if (resizeDir.includes("s")) influence += dy;
+  if (resizeDir.includes("n")) influence -= dy;
 
-  // 影響越大，scale 變化越大（200 這個可以自己調手感）
   let newScale = resizeStartScale * (1 + influence / 300);
   const minScale =
     Math.min(canvasWidth / imgNaturalW, canvasHeight / imgNaturalH) / 5;
@@ -321,12 +401,12 @@ function handleResizeMove(e) {
   if (newScale < minScale) newScale = minScale;
   if (newScale > maxScale) newScale = maxScale;
 
-  // 依照圖片中心，重新算 offset，保持中心不變
   const newDisplayW = imgNaturalW * newScale;
   const newDisplayH = imgNaturalH * newScale;
 
-  offsetX = resizeCenterX - newDisplayW / 2;
-  offsetY = resizeCenterY - newDisplayH / 2;
+  // 根據「反向錨點」計算新的 offset，使錨點位置固定不動
+  offsetX = anchorCanvasX - anchorNormX * newDisplayW;
+  offsetY = anchorCanvasY - anchorNormY * newDisplayH;
 
   scale = newScale;
   updateTransform();

@@ -1,5 +1,6 @@
 body {
-  font-family: system-ui;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
   margin: 0;
   padding: 20px;
   background: #f5f5f5;
@@ -9,57 +10,150 @@ body {
   max-width: 1100px;
   margin: 0 auto;
   background: #ffffff;
-  padding: 20px;
   border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+}
+
+h1 {
+  font-size: 20px;
+  margin-bottom: 16px;
 }
 
 .row {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
+  align-items: center;
   margin-bottom: 12px;
 }
 
+label {
+  font-size: 14px;
+}
+
+input[type="number"] {
+  width: 100px;
+  padding: 4px 6px;
+  font-size: 14px;
+}
+
+input[type="file"] {
+  font-size: 14px;
+}
+
+button {
+  border: none;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  background: #111827;
+  color: white;
+  transition: background 0.15s ease, transform 0.04s ease;
+}
+
+button.secondary {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+button:hover {
+  background: #000000;
+}
+
+button.secondary:hover {
+  background: #e5e7eb;
+}
+
+button:active {
+  transform: scale(0.97);
+}
+
+.hint {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.canvas-info {
+  font-size: 12px;
+  color: #4b5563;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* 畫布預覽區：灰白格子 + 超出裁掉 */
 #canvasPreview {
   position: relative;
-  border: 1px solid #ddd;
+  margin-top: 16px;
   border-radius: 8px;
-  overflow: hidden;
-
-  /* Photoshop 格子背景 */
-  background-image:
-    linear-gradient(45deg, #e5e5e5 25%, transparent 25%),
+  border: 1px solid #e5e7eb;
+  overflow: hidden; /* 超出的圖片被隱藏 */
+  background-image: linear-gradient(45deg, #e5e5e5 25%, transparent 25%),
     linear-gradient(-45deg, #e5e5e5 25%, transparent 25%),
     linear-gradient(45deg, transparent 75%, #e5e5e5 75%),
     linear-gradient(-45deg, transparent 75%, #e5e5e5 75%);
   background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+  transform-origin: top left; /* 給畫布縮放用 */
+  z-index: 0; /* 格子底在最底 */
 }
 
+/* 拖曳中：整個畫布區變成十字游標（像 PowerPoint 抓物件時） */
+#canvasPreview.dragging {
+  cursor: crosshair;
+}
+
+/* 平常移到圖片上，可以給一個移動游標，表示可以拖曳 */
+#photoWrapper {
+  cursor: move;
+}
+
+/* 包住圖片 + 拉伸點的 wrapper，transform 作用在這 */
 #photoWrapper {
   position: absolute;
   top: 0;
   left: 0;
-  transform-origin: top left; /* 以左上為縮放基準 */
+  transform-origin: top left;
   user-select: none;
   pointer-events: auto;
+  z-index: 1; /* 圖片在中間 */
 }
 
-/* 圖片跟著 wrapper 走就好，不另外 transform */
+/* 圖片只負責顯示，尺寸用原始值 */
 #photoLayer {
   display: block;
-  max-width: none; /* 用原始尺寸 */
+  max-width: none;
   max-height: none;
 }
 
-
+/* 拖曳提示遮罩：在最上層，但載入圖片後會加 hidden 變成 display:none */
 #dropOverlay {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #888;
+  text-align: center;
+  font-size: 13px;
+  color: #6b7280;
+  pointer-events: none;
+  z-index: 2; /* 示意文字在最上面，但會隱藏 */
 }
 
+#dropOverlay.hidden {
+  display: none;
+}
+
+#dropOverlay.dragover {
+  background: rgba(37, 99, 235, 0.06);
+  border: 1px dashed #2563eb;
+}
 
 /* 8 個拉伸點的共用樣式 */
 .handle {
@@ -74,42 +168,49 @@ body {
   cursor: pointer;
 }
 
-/* 各位置 */
+/* 個別位置 */
 .handle-nw {
   top: 0;
   left: 0;
   cursor: nwse-resize;
 }
+
 .handle-n {
   top: 0;
   left: 50%;
   cursor: ns-resize;
 }
+
 .handle-ne {
   top: 0;
   left: 100%;
   cursor: nesw-resize;
 }
+
 .handle-e {
   top: 50%;
   left: 100%;
   cursor: ew-resize;
 }
+
 .handle-se {
   top: 100%;
   left: 100%;
   cursor: nwse-resize;
 }
+
 .handle-s {
   top: 100%;
   left: 50%;
   cursor: ns-resize;
 }
+
 .handle-sw {
   top: 100%;
   left: 0;
   cursor: nesw-resize;
 }
+
 .handle-w {
   top: 50%;
   left: 0;

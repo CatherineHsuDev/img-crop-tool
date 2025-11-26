@@ -7,14 +7,18 @@
   </head>
   <body>
     <div class="container">
+      <h1>自訂畫布圖片排版工具（透明 PNG）</h1>
+
       <!-- 畫布設定 -->
       <div class="row">
-        <label
-          >寬度(px)：<input type="number" id="canvasWidthInput" value="500"
-        /></label>
-        <label
-          >高度(px)：<input type="number" id="canvasHeightInput" value="400"
-        /></label>
+        <label>
+          畫布寬度(px)：
+          <input type="number" id="canvasWidthInput" value="500" min="50" />
+        </label>
+        <label>
+          畫布高度(px)：
+          <input type="number" id="canvasHeightInput" value="400" min="50" />
+        </label>
         <button id="btnUpdateCanvas">建立 / 更新畫布</button>
         <span id="canvasInfo" class="canvas-info"></span>
       </div>
@@ -22,13 +26,19 @@
       <!-- 載入圖片 -->
       <div class="row">
         <input type="file" id="fileInput" accept="image/*" />
+        <span class="hint">也可以直接把圖片拖曳到下面灰白格子區。</span>
       </div>
 
-      <!-- 畫布區 -->
+      <p class="hint">
+        操作：設定畫布尺寸 → 建立畫布 → 載入或拖曳圖片 → 左鍵拖曳移動圖片，
+        滾輪縮放圖片（等比例），Alt + 滾輪縮放畫布預覽 → 使用拉伸點微調 →
+        按「下載 PNG」匯出。
+      </p>
+
+      <!-- 畫布預覽 -->
       <div id="canvasPreview">
         <div id="photoWrapper" style="display: none">
-          <img id="photoLayer" alt="photo" />
-
+          <img id="photoLayer" alt="photo" draggable="false" />
           <!-- 8 個拉伸點 -->
           <div class="handle handle-nw" data-dir="nw"></div>
           <div class="handle handle-n" data-dir="n"></div>
@@ -48,13 +58,21 @@
         </div>
       </div>
 
+      <!-- 控制按鈕 -->
       <div class="controls">
-        <button id="btnCenter">置中</button>
-        <button id="btnResetZoom">重設縮放</button>
+        <button class="secondary" id="btnCenter">置中圖片</button>
+        <button class="secondary" id="btnResetZoom">
+          重設縮放（完整塞進畫布）
+        </button>
+        <button class="secondary" id="btnCover">填滿畫布（cover）</button>
         <button id="btnDownload">下載 PNG</button>
       </div>
+
+      <p class="hint">
+        Alt + 滾輪：只會放大／縮小「預覽畫布」，不影響最後匯出的 PNG 尺寸。
+      </p>
     </div>
 
-    <script src="app.js"></script>
+    <script type="module" src="js/canvas.js"></script>
   </body>
 </html>
